@@ -9,8 +9,9 @@ import {
   ColumnFiltersState,
   SortingState,
   getSortedRowModel,
+  FilterFn,
 } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -22,12 +23,49 @@ import {
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react'; // Import sorting icons
+import { Checkbox } from './ui/checkbox';
+import { Label } from './ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "./ui/popover";
+import { X, Filter } from "lucide-react";
+import { Badge } from "./ui/badge";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   filterColumn?: string; // Optional filter column name
 }
+
+// Custom filter function for price range
+const priceRangeFilterFn: FilterFn<any> = (row, columnId, filterValue) => {
+  const { min, max, excludeNull } = filterValue;
+  const price = row.original.price?.total_vnd;
+
+  // If price is null and we're excluding nulls
+  if (price === null && excludeNull) {
+    return false;
+  }
+
+  // If price is null and we're not excluding nulls
+  if (price === null) {
+    return true;
+  }
+
+  // Check min value if provided
+  if (min !== null && min !== undefined && min !== '' && price < min) {
+    return false;
+  }
+
+  // Check max value if provided
+  if (max !== null && max !== undefined && max !== '' && price > max) {
+    return false;
+  }
+
+  return true;
+};
 
 export function DataTable<TData, TValue>({
   columns,
@@ -37,6 +75,15 @@ export function DataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([]); // Add sorting state
 
+  // Price filter state
+  const [priceMin, setPriceMin] = useState<string>('');
+  const [priceMax, setPriceMax] = useState<string>('');
+  const [excludeNullPrices, setExcludeNullPrices] = useState<boolean>(false);
+  const [priceFilterError, setPriceFilterError] = useState<string | null>(null);
+  const [isPriceFilterActive, setIsPriceFilterActive] = useState<boolean>(false);
+  const [isPopoverOpen, setIsPopoverOpen] = useState<boolean>(false);
+
+  // Register the custom filter
   const table = useReactTable({
     data,
     columns,
@@ -50,27 +97,165 @@ export function DataTable<TData, TValue>({
       columnFilters,
       sorting, // Add sorting to state
     },
+    filterFns: {
+      priceRange: priceRangeFilterFn,
+    },
+    columnResizeMode: "onChange", // Enable column resizing
+    defaultColumn: {
+      minSize: 80, // Default minimum width for all columns
+      maxSize: 1200, // Default maximum width for all columns
+    },
   });
+
+  // Apply price filter when values change
+  const applyPriceFilter = () => {
+    // Validate price range
+    if (priceMin && priceMax && Number(priceMin) > Number(priceMax)) {
+      setPriceFilterError('Min price must be less than max price');
+      return;
+    } else {
+      setPriceFilterError(null);
+    }
+
+    // Apply filter - convert millions to actual VND by multiplying by 1,000,000
+    table.getColumn('price_total_vnd')?.setFilterValue({
+      min: priceMin ? Number(priceMin) * 1000000 : null,
+      max: priceMax ? Number(priceMax) * 1000000 : null,
+      excludeNull: excludeNullPrices,
+    });
+
+    // Set filter as active if any value is set
+    const isActive = !!(priceMin || priceMax || excludeNullPrices);
+    setIsPriceFilterActive(isActive);
+    setIsPopoverOpen(false);
+  };
+
+  // Reset price filter
+  const resetPriceFilter = () => {
+    setPriceMin('');
+    setPriceMax('');
+    setExcludeNullPrices(false);
+    setPriceFilterError(null);
+    table.getColumn('price_total_vnd')?.setFilterValue(undefined);
+    setIsPriceFilterActive(false);
+    setIsPopoverOpen(false);
+  };
 
   return (
     <div>
-      <div className="flex items-center py-4">
-        <Input
-          placeholder="Filter records..."
-          value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
-          onChange={(event) =>
-            table.getColumn('name')?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm"
-        />
+      <div className="flex gap-4 py-4">
+        <div className="flex items-center">
+          <Input
+            placeholder="Filter records..."
+            value={(table.getColumn('post_text')?.getFilterValue() as string) ?? ''}
+            onChange={(event) =>
+              table.getColumn('post_text')?.setFilterValue(event.target.value)
+            }
+            className="max-w-sm"
+          />
+        </div>
+
+        {/* Price range filter */}
+        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant={isPriceFilterActive ? "default" : "outline"}
+              size="sm"
+              className={
+                "flex items-center gap-1 " +
+                (isPriceFilterActive ? "bg-pink-700" : "")
+              }
+            >
+              <Filter className="h-4 w-4" />
+              Giá
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80">
+            <div className="space-y-4">
+              <h3 className="font-medium">Price Filter</h3>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="price-min">Min (Triệu VND)</Label>
+                  <Input
+                    id="price-min"
+                    type="number"
+                    placeholder="Triệu đồng"
+                    value={priceMin}
+                    onChange={(e) => setPriceMin(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applyPriceFilter();
+                      }
+                    }}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="price-max">Max (Triệu VND)</Label>
+                  <Input
+                    id="price-max"
+                    type="number"
+                    placeholder="Triệu đồng"
+                    value={priceMax}
+                    onChange={(e) => setPriceMax(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applyPriceFilter();
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {priceFilterError && (
+                <p className="text-sm text-red-500">{priceFilterError}</p>
+              )}
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="exclude-null"
+                  checked={excludeNullPrices}
+                  onCheckedChange={(checked) =>
+                    setExcludeNullPrices(checked === true)
+                  }
+                />
+                <Label htmlFor="exclude-null">Exclude listings without price</Label>
+              </div>
+
+              <div className="flex justify-between pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetPriceFilter}
+                  className="flex items-center"
+                >
+                  <X className="mr-1 h-4 w-4" />
+                  Reset
+                </Button>
+                <Button size="sm" onClick={applyPriceFilter}>
+                  Apply
+                </Button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
-      <div className="rounded-md border">
-        <Table>
+
+      <div className="rounded-md border overflow-x-auto">
+        <Table className="w-full">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead key={header.id}
+                    style={{
+                      width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : 'auto',
+                      minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : '80px',
+                      maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : 'none'
+                    }}
+                  >
                     {header.isPlaceholder ? null : (
                       <div
                         className={

@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { DataTable } from '../components/DataTable';
 import { columns } from '../components/ui/data-table/columns';
 import { supabase } from '../lib/supabase';
-import { PostgrestSingleResponse } from '@supabase/supabase-js';
 import { Button } from '../components/ui/button';
 
 interface PostPrice {
@@ -44,6 +43,7 @@ export interface PostData {
   location: PostLocation | null;
   status: number;
   fetch_at: string | null;
+  special_things: string[] | null,
   created_at: string; // create time of this real estate post
 }
 
