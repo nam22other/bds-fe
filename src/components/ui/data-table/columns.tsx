@@ -60,6 +60,11 @@ export const columns: ColumnDef<PostData>[] = [
     },
   },
   {
+    accessorKey: 'location.road',
+    header: 'Đường',
+    cell: ({ row }) => row.original.location?.road?.join(', ') || 'N/A',
+  },
+  {
     accessorKey: 'location.city',
     header: 'Thành phố',
     cell: ({ row }) => row.original.location?.city || 'N/A',
