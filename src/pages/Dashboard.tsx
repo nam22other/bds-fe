@@ -48,7 +48,7 @@ export interface PostData {
 }
 
 export function Dashboard() {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<PostData[]>([]);
   const [loading, setLoading] = useState(true);
   const { signOut } = useAuth();
 
@@ -58,16 +58,14 @@ export function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const { data, error }: { data: PostgrestSingleResponse<PostData[]>, error: Error } = await supabase
+      const { data, error } = await supabase
         .from('posts')
         .select()
         // .order('id', { ascending: false })
         ;
 
-      console.log('------')
-      console.log(data)
       if (error) throw error;
-      setData(data || []);
+      setData(data as PostData[] || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
