@@ -18,7 +18,7 @@ function App() {
               // </ProtectedRoute>
             }
           />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/shadcn-ui/dashboard" replace />} />
         </Routes>
       </AuthProvider>
     </Router>
