@@ -6,7 +6,7 @@ import { Dashboard } from './pages/Dashboard';
 
 function App() {
   return (
-    <Router>
+    <Router basename="/bds-fe">
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
