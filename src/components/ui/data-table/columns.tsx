@@ -1,5 +1,5 @@
 // src/components/ui/data-table/columns.tsx
-import { ColumnDef } from '@tanstack/react-table';
+import { ColumnDef, FilterFn } from '@tanstack/react-table';
 import { PostData } from '../../../pages/Dashboard'; // Import the PostData interface
 // import badge
 import { Badge } from '@/components/ui/badge';
@@ -104,7 +104,7 @@ export const columns: ColumnDef<PostData>[] = [
       const price = row.original.price?.total_vnd;
       return price ? price.toLocaleString('vi-VN') + ' đ' : 'N/A';
     },
-    filterFn: 'priceRange',
+    filterFn: 'priceRange' as unknown as FilterFn<PostData>,
   },
   {
     id: 'aggregated_area',
