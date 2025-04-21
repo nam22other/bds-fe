@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   FilterFn,
 } from '@tanstack/react-table';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -31,7 +31,6 @@ import {
   PopoverTrigger,
 } from "./ui/popover";
 import { X, Filter } from "lucide-react";
-import { Badge } from "./ui/badge";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -40,7 +39,7 @@ interface DataTableProps<TData, TValue> {
 }
 
 // Custom filter function for price range
-const priceRangeFilterFn: FilterFn<any> = (row, columnId, filterValue) => {
+const priceRangeFilterFn: FilterFn<{ price?: { total_vnd: number | null } }> = (row, columnId, filterValue) => {
   const { min, max, excludeNull } = filterValue;
   const price = row.original.price?.total_vnd;
 
@@ -50,7 +49,7 @@ const priceRangeFilterFn: FilterFn<any> = (row, columnId, filterValue) => {
   }
 
   // If price is null and we're not excluding nulls
-  if (price === null) {
+  if (price === null || price === undefined) {
     return true;
   }
 
@@ -70,10 +69,12 @@ const priceRangeFilterFn: FilterFn<any> = (row, columnId, filterValue) => {
 export function DataTable<TData, TValue>({
   columns,
   data,
-  filterColumn = 'post_text', // Default to post_text for filtering
+  // filterColumn = 'post_text', // Default to post_text for filtering
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [sorting, setSorting] = useState<SortingState>([]); // Add sorting state
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: 'id', desc: true },
+  ]); // Add sorting state
 
   // Price filter state
   const [priceMin, setPriceMin] = useState<string>('');
@@ -82,6 +83,9 @@ export function DataTable<TData, TValue>({
   const [priceFilterError, setPriceFilterError] = useState<string | null>(null);
   const [isPriceFilterActive, setIsPriceFilterActive] = useState<boolean>(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState<boolean>(false);
+
+  // Add this state for multi-sort mode
+  const [isMultiSortMode, setIsMultiSortMode] = useState<boolean>(true);
 
   // Register the custom filter
   const table = useReactTable({
@@ -101,10 +105,14 @@ export function DataTable<TData, TValue>({
       priceRange: priceRangeFilterFn,
     },
     columnResizeMode: "onChange", // Enable column resizing
+    enableMultiSort: true,
+    maxMultiSortColCount: 3,
+    isMultiSortEvent: () => isMultiSortMode,
     defaultColumn: {
-      minSize: 80, // Default minimum width for all columns
-      maxSize: 1200, // Default maximum width for all columns
-    },
+      meta: {
+        width: '50px'
+      }
+    }
   });
 
   // Apply price filter when values change
@@ -221,7 +229,7 @@ export function DataTable<TData, TValue>({
                     setExcludeNullPrices(checked === true)
                   }
                 />
-                <Label htmlFor="exclude-null">Exclude listings without price</Label>
+                <Label htmlFor="exclude-null">Lọc bài không có giá</Label>
               </div>
 
               <div className="flex justify-between pt-2">
@@ -244,16 +252,31 @@ export function DataTable<TData, TValue>({
       </div>
 
       <div className="rounded-md border overflow-x-auto">
-        <Table className="w-full">
+        <div className="text-xs text-gray-500 p-2 flex justify-between items-center">
+          <span>
+            {isMultiSortMode
+              ? "Chế độ sắp xếp Nhiều Cột (Max 3 cột)"
+              : "Chế độ sắp xếp 1 Cột"}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsMultiSortMode(!isMultiSortMode)}
+            className="text-xs h-7"
+          >
+            {isMultiSortMode ? "Tắt sắp xếp nhiều cột" : "Bật sắp xếp nhiều cột"}
+          </Button>
+        </div>
+        <Table className="w-full lg:table-fixed">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id}
                     style={{
-                      width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : 'auto',
+                      width: (header.column.columnDef.meta as { width?: string })?.width ||
+                        (header.column.columnDef.size ? `${header.column.columnDef.size}px` : 'auto'),
                       minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : '80px',
-                      maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : 'none'
                     }}
                   >
                     {header.isPlaceholder ? null : (
@@ -263,7 +286,12 @@ export function DataTable<TData, TValue>({
                             ? "flex items-center cursor-pointer select-none"
                             : ""
                         }
-                        onClick={header.column.getToggleSortingHandler()}
+                        onClick={(e) => {
+                          const handler = header.column.getToggleSortingHandler();
+                          if (!handler) return;
+
+                          handler(e);
+                        }}
                       >
                         {flexRender(
                           header.column.columnDef.header,

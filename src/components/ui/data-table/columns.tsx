@@ -15,7 +15,7 @@ const renderPostText = (value: string, data: PostData) => {
   return (
     <div>
       <p>{post}</p>
-      <div>
+      <div className="hidden lg:block">
         {data.special_things?.map((value, index) => <Badge key={index} variant="outline" className="mr-2">{value}</Badge>)}
       </div>
       <a href={data.post_link} target="_blank"
@@ -76,17 +76,19 @@ export const columns: ColumnDef<PostData>[] = [
   {
     accessorKey: 'id',
     header: 'ID',
-    size: 50,
-    minSize: 50,
+    meta: {
+      width: '20px'
+    }
   },
   {
     accessorKey: 'post_text',
     header: 'Post Text',
     cell: ({ row }) => renderPostText(row.getValue('post_text'), row.original),
     enableSorting: false,
-    // size: 500, // Set a large size value to make it take up more space
-    minSize: 400, // Minimum width in pixels
-    maxSize: 1000, // Maximum width in pixels
+    minSize: 250, // Minimum width in pixels
+    meta: {
+      width: '40%'
+    },
   },
   {
     accessorKey: 'prop_type',
@@ -111,6 +113,10 @@ export const columns: ColumnDef<PostData>[] = [
     header: 'Diện tích',
     cell: ({ row }) => renderAreaData(row.original),
     enableSorting: false,
+    minSize: 100, // Minimum width in pixels
+    meta: {
+      width: '10%'
+    },
   },
   {
     accessorKey: 'location.road',
