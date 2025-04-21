@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   FilterFn,
 } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -31,6 +31,13 @@ import {
   PopoverTrigger,
 } from "./ui/popover";
 import { X, Filter } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { CheckSquare } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -87,6 +94,28 @@ export function DataTable<TData, TValue>({
   // Add this state for multi-sort mode
   const [isMultiSortMode, setIsMultiSortMode] = useState<boolean>(true);
 
+  // Property type filter state
+  const [propTypeFilters, setPropTypeFilters] = useState<string[]>([]);
+  const [isPropTypeFilterActive, setIsPropTypeFilterActive] = useState<boolean>(false);
+
+  const handlePropTypeFilter = (value: string) => {
+    setPropTypeFilters(current => {
+      // If already selected, remove it
+      if (current.includes(value)) {
+        const newFilters = current.filter(item => item !== value);
+        // Update filter active state
+        setIsPropTypeFilterActive(newFilters.length > 0);
+        return newFilters;
+      }
+      // Otherwise add it
+      const newFilters = [...current, value];
+      setIsPropTypeFilterActive(true);
+      return newFilters;
+    });
+  };
+
+
+
   // Register the custom filter
   const table = useReactTable({
     data,
@@ -103,6 +132,11 @@ export function DataTable<TData, TValue>({
     },
     filterFns: {
       priceRange: priceRangeFilterFn,
+      propTypeFilter: (row, columnId, filterValue) => {
+        const propType = row.getValue(columnId) as string;
+        const filters = filterValue as string[];
+        return filters.length === 0 || filters.includes(propType);
+      },
     },
     columnResizeMode: "onChange", // Enable column resizing
     enableMultiSort: true,
@@ -114,6 +148,17 @@ export function DataTable<TData, TValue>({
       }
     }
   });
+
+  useEffect(() => {
+    const column = table.getColumn('prop_type');
+    if (column) {
+      if (propTypeFilters.length > 0) {
+        column.setFilterValue(propTypeFilters);
+      } else {
+        column.setFilterValue(undefined);
+      }
+    }
+  }, [propTypeFilters, table]);
 
   // Apply price filter when values change
   const applyPriceFilter = () => {
@@ -162,6 +207,55 @@ export function DataTable<TData, TValue>({
             className="max-w-sm"
           />
         </div>
+
+        {/* Property Type Filter */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant={isPropTypeFilterActive ? "default" : "outline"}
+              size="sm"
+              className={
+                "flex items-center gap-1 " +
+                (isPropTypeFilterActive ? "bg-pink-700" : "")
+              }
+            >
+              <CheckSquare className="h-4 w-4" />
+              Loại BĐS
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuCheckboxItem
+              checked={propTypeFilters.includes('house')}
+              onCheckedChange={() => handlePropTypeFilter('house')}
+            >
+              Nhà
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={propTypeFilters.includes('land')}
+              onCheckedChange={() => handlePropTypeFilter('land')}
+            >
+              Đất
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={propTypeFilters.includes('rent')}
+              onCheckedChange={() => handlePropTypeFilter('rent')}
+            >
+              Cho thuê
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={propTypeFilters.includes('hostel')}
+              onCheckedChange={() => handlePropTypeFilter('hostel')}
+            >
+              Nhà trọ
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={propTypeFilters.includes('other')}
+              onCheckedChange={() => handlePropTypeFilter('other')}
+            >
+              Khác
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Price range filter */}
         <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>

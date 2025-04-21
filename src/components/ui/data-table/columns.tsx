@@ -8,8 +8,8 @@ import { buttonVariants } from "@/components/ui/button"
 // Custom cell renderers
 const renderPostText = (value: string, data: PostData) => {
   // Truncate long text to first 100 characters
-  const post = value && value.length > 100
-    ? `${value.substring(0, 100)}...`
+  const post = value && value.length > 120
+    ? `${value.substring(0, 120)}...`
     : value;
 
   return (
@@ -72,6 +72,42 @@ const renderAreaData = (data: PostData) => {
   return parts.length > 0 ? parts : '-';
 };
 
+function formatVietnameseNumber(number: number | undefined | null) {
+  if (number === null || number === undefined) return '0';
+
+  const ty = Math.floor(number / 1_000_000_000);
+  const trieu = Math.floor((number % 1_000_000_000) / 1_000_000);
+  const nghin = Math.floor((number % 1_000_000) / 1_000);
+
+  let result = '';
+  if (ty > 0) result += `${ty} tỷ`;
+  if (trieu > 0) result += (result ? ' ' : '') + `${trieu} triệu`;
+  if (ty <= 0 && nghin > 0) result += (result ? ' ' : '') + `${nghin} nghìn`;
+
+  return result || '0';
+}
+
+const renderPriceData = (data: PostData) => {
+  const price = data.price;
+  if (!price) return 'N/A';
+
+  const parts = [];
+
+  if (price.total_vnd) {
+    parts.push(<div title={`Giá ${price.total_vnd?.toLocaleString('vi-VN')}`}>{formatVietnameseNumber(price.total_vnd)}</div>);
+  }
+
+  if (price.residential_unit_price_per_m2) {
+    parts.push(<div title={`Đơn giá Thổ cư: ${price.residential_unit_price_per_m2?.toLocaleString('vi-VN')} đ`}>ĐGTC: <span className="text-pink-700">{formatVietnameseNumber(price.residential_unit_price_per_m2)}</span></div>);
+  }
+
+  if (price.total_unit_price_per_m2) {
+    parts.push(<div title={`Đơn giá M2: ${price.total_unit_price_per_m2?.toLocaleString('vi-VN')} đ`}>ĐG: <span className="text-pink-700">{formatVietnameseNumber(price.total_unit_price_per_m2)}</span></div>);
+  }
+
+  return parts.length > 0 ? parts : '-';
+};
+
 export const columns: ColumnDef<PostData>[] = [
   {
     accessorKey: 'id',
@@ -82,7 +118,7 @@ export const columns: ColumnDef<PostData>[] = [
   },
   {
     accessorKey: 'post_text',
-    header: 'Post Text',
+    header: 'Bài Viết',
     cell: ({ row }) => renderPostText(row.getValue('post_text'), row.original),
     enableSorting: false,
     minSize: 250, // Minimum width in pixels
@@ -97,16 +133,18 @@ export const columns: ColumnDef<PostData>[] = [
       const value = row.getValue('prop_type') as string;
       return <Badge variant="secondary">{renderPropType(value)}</Badge>;
     },
+    filterFn: 'propTypeFilter' as unknown as FilterFn<PostData>,
   },
   {
     accessorKey: 'price_total_vnd',
     accessorFn: (row) => row.price?.total_vnd, // Use accessorFn instead of accessorKey
     header: 'Giá',
-    cell: ({ row }) => {
-      const price = row.original.price?.total_vnd;
-      return price ? price.toLocaleString('vi-VN') + ' đ' : 'N/A';
-    },
+    cell: ({ row }) => renderPriceData(row.original),
     filterFn: 'priceRange' as unknown as FilterFn<PostData>,
+    minSize: 150, // Minimum width in pixels
+    meta: {
+      width: '10%'
+    },
   },
   {
     id: 'aggregated_area',

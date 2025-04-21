@@ -62,6 +62,8 @@ export function Dashboard() {
         .from('posts')
         .select()
         // .order('id', { ascending: false })
+        // where status is 1
+        .eq('status', 1)
         ;
 
       if (error) throw error;
