@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   FilterFn,
 } from '@tanstack/react-table';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Table,
   TableBody,
@@ -42,7 +42,16 @@ import { CheckSquare } from "lucide-react";
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  filterColumn?: string; // Optional filter column name
+  pageCount?: number;
+  pageIndex?: number;
+  pageSize?: number;
+  onPaginationChange?: (pageIndex: number, pageSize: number) => void;
+  onFilterChange?: (filters: any) => void;
+  onSortingChange?: (sorting: { id: string; desc: boolean }[]) => void;
+  sorting?: SortingState;
+  manualPagination?: boolean;
+  manualFiltering?: boolean;
+  manualSorting?: boolean;
 }
 
 // Custom filter function for price range
@@ -76,7 +85,15 @@ const priceRangeFilterFn: FilterFn<{ price?: { total_vnd: number | null } }> = (
 export function DataTable<TData, TValue>({
   columns,
   data,
-  // filterColumn = 'post_text', // Default to post_text for filtering
+  pageCount = 0,
+  pageIndex = 0,
+  pageSize = 10,
+  onPaginationChange,
+  onFilterChange,
+  onSortingChange,
+  manualPagination = false,
+  manualFiltering = false,
+  manualSorting = false,
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([
@@ -97,6 +114,13 @@ export function DataTable<TData, TValue>({
   // Property type filter state
   const [propTypeFilters, setPropTypeFilters] = useState<string[]>([]);
   const [isPropTypeFilterActive, setIsPropTypeFilterActive] = useState<boolean>(false);
+
+  const [internalSorting, setInternalSorting] = useState<SortingState>([
+    { id: 'id', desc: true },
+  ]);
+
+  // Use the provided sorting if available
+  const activeSorting = sorting || internalSorting;
 
   const handlePropTypeFilter = (value: string) => {
     setPropTypeFilters(current => {
@@ -121,15 +145,44 @@ export function DataTable<TData, TValue>({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(), // Add sorting model
+    getPaginationRowModel: manualPagination ? undefined : getPaginationRowModel(),
+    getFilteredRowModel: manualFiltering ? undefined : getFilteredRowModel(),
+    getSortedRowModel: manualSorting ? undefined : getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
-    onSortingChange: setSorting, // Add sorting change handler
+    onSortingChange: (updater) => {
+      const newSorting =
+        typeof updater === 'function'
+          ? updater(activeSorting)
+          : updater;
+
+      // Update both internal states
+      setSorting(newSorting);
+      setInternalSorting(newSorting);
+
+      if (manualSorting && onSortingChange) {
+        onSortingChange(newSorting);
+      }
+    },
+    manualPagination,
+    manualFiltering,
+    pageCount: manualPagination ? pageCount : undefined,
     state: {
       columnFilters,
-      sorting, // Add sorting to state
+      sorting: activeSorting,
+      pagination: {
+        pageIndex,
+        pageSize,
+      },
     },
+    onPaginationChange: manualPagination && onPaginationChange
+      ? (updater) => {
+        const newPagination =
+          typeof updater === 'function'
+            ? updater({ pageIndex, pageSize })
+            : updater;
+        onPaginationChange(newPagination.pageIndex, newPagination.pageSize);
+      }
+      : undefined,
     filterFns: {
       priceRange: priceRangeFilterFn,
       propTypeFilter: (row, columnId, filterValue) => {
@@ -148,6 +201,66 @@ export function DataTable<TData, TValue>({
       }
     }
   });
+
+
+  // Use a ref to track if this is the initial render
+  const isInitialRender = useRef(true);
+  const previousFilters = useRef({
+    post_text: undefined as string | undefined,
+    prop_type: [] as string[],
+    price_min: undefined as number | undefined,
+    price_max: undefined as number | undefined,
+    exclude_null_prices: false
+  });
+
+  // Debounce filter changes
+  useEffect(() => {
+    // Skip the initial render
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
+
+    // Get current filter values
+    const currentFilters = {
+      post_text: table.getColumn('post_text')?.getFilterValue() as string,
+      prop_type: propTypeFilters,
+      price_min: priceMin ? Number(priceMin) * 1000000 : undefined,
+      price_max: priceMax ? Number(priceMax) * 1000000 : undefined,
+      exclude_null_prices: excludeNullPrices,
+    };
+
+    // Check if filters have actually changed
+    const hasChanged =
+      currentFilters.post_text !== previousFilters.current.post_text ||
+      JSON.stringify(currentFilters.prop_type) !== JSON.stringify(previousFilters.current.prop_type) ||
+      currentFilters.price_min !== previousFilters.current.price_min ||
+      currentFilters.price_max !== previousFilters.current.price_max ||
+      currentFilters.exclude_null_prices !== previousFilters.current.exclude_null_prices;
+
+    if (manualFiltering && onFilterChange && hasChanged) {
+
+      console.log(currentFilters)
+      console.log(previousFilters.current)
+      const timer = setTimeout(() => {
+        onFilterChange(currentFilters);
+        // Update previous filters after applying
+        previousFilters.current = currentFilters;
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [
+    manualFiltering,
+    onFilterChange,
+    propTypeFilters,
+    table,
+    table.getColumn('post_text')?.getFilterValue() as string,
+    JSON.stringify(propTypeFilters),
+    priceMin,
+    priceMax,
+    excludeNullPrices
+  ]);
 
   useEffect(() => {
     const column = table.getColumn('prop_type');
@@ -384,6 +497,7 @@ export function DataTable<TData, TValue>({
                           const handler = header.column.getToggleSortingHandler();
                           if (!handler) return;
 
+                          // Just call the handler - the onSortingChange above will handle the rest
                           handler(e);
                         }}
                       >
@@ -436,23 +550,60 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
+      <div className="flex items-center justify-between space-x-2 py-4">
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-500">
+            Page {pageIndex + 1} of {pageCount}
+          </span>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              const newPageSize = Number(e.target.value);
+              if (manualPagination && onPaginationChange) {
+                onPaginationChange(pageIndex, newPageSize);
+              } else {
+                table.setPageSize(newPageSize);
+              }
+            }}
+            className="border rounded p-1 text-sm"
+          >
+            {[10, 20, 30, 40, 50].map((size) => (
+              <option key={size} value={size}>
+                Show {size}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (manualPagination && onPaginationChange) {
+                onPaginationChange(pageIndex - 1, pageSize);
+              } else {
+                table.previousPage();
+              }
+            }}
+            disabled={pageIndex === 0}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (manualPagination && onPaginationChange) {
+                onPaginationChange(pageIndex + 1, pageSize);
+              } else {
+                table.nextPage();
+              }
+            }}
+            disabled={pageIndex >= pageCount - 1}
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );

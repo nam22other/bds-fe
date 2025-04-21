@@ -51,22 +51,22 @@ const renderAreaData = (data: PostData) => {
   const parts = [];
 
   if (area.length_m && area.width_m) {
-    parts.push(`${area.width_m}m × ${area.length_m}m`);
+    parts.push(<div key="dt">{area.width_m}m × ${area.length_m}m</div>);
   } else {
-    if (area.length_m) parts.push(`Dài: ${area.length_m}m`);
-    if (area.width_m) parts.push(`Rộng: ${area.width_m}m`);
+    if (area.length_m) parts.push(<div key="length">Dài: ${area.length_m}m</div>);
+    if (area.width_m) parts.push(<div key="rong">Rộng: ${area.width_m}m</div>);
   }
 
   if (area.total_m2) {
-    parts.push(<div>Tổng: <span className="text-pink-700">{area.total_m2}</span>m²</div>);
+    parts.push(<div key="dtm2">Tổng: <span className="text-pink-700">{area.total_m2}</span>m²</div>);
   }
 
   if (area.residential_m2) {
-    parts.push(<div>Thổ cư: <span className="text-pink-700">{area.residential_m2}</span>m²</div>);
+    parts.push(<div key="tc">Thổ cư: <span className="text-pink-700">{area.residential_m2}</span>m²</div>);
   }
 
   if (area.other_land_type) {
-    parts.push(<div>Đất khác: {area.other_land_type}</div>);
+    parts.push(<div key="dk">Đất khác: {area.other_land_type}</div>);
   }
 
   return parts.length > 0 ? parts : '-';
@@ -94,15 +94,15 @@ const renderPriceData = (data: PostData) => {
   const parts = [];
 
   if (price.total_vnd) {
-    parts.push(<div title={`Giá ${price.total_vnd?.toLocaleString('vi-VN')}`}>{formatVietnameseNumber(price.total_vnd)}</div>);
+    parts.push(<div key="totalPrice" title={`Giá ${price.total_vnd?.toLocaleString('vi-VN')}`}>{formatVietnameseNumber(price.total_vnd)}</div>);
   }
 
   if (price.residential_unit_price_per_m2) {
-    parts.push(<div title={`Đơn giá Thổ cư: ${price.residential_unit_price_per_m2?.toLocaleString('vi-VN')} đ`}>ĐGTC: <span className="text-pink-700">{formatVietnameseNumber(price.residential_unit_price_per_m2)}</span></div>);
+    parts.push(<div key="dgtc" title={`Đơn giá Thổ cư: ${price.residential_unit_price_per_m2?.toLocaleString('vi-VN')} đ`}>ĐGTC: <span className="text-pink-700">{formatVietnameseNumber(price.residential_unit_price_per_m2)}</span></div>);
   }
 
   if (price.total_unit_price_per_m2) {
-    parts.push(<div title={`Đơn giá M2: ${price.total_unit_price_per_m2?.toLocaleString('vi-VN')} đ`}>ĐG: <span className="text-pink-700">{formatVietnameseNumber(price.total_unit_price_per_m2)}</span></div>);
+    parts.push(<div key="dgm2" title={`Đơn giá M2: ${price.total_unit_price_per_m2?.toLocaleString('vi-VN')} đ`}>ĐG: <span className="text-pink-700">{formatVietnameseNumber(price.total_unit_price_per_m2)}</span></div>);
   }
 
   return parts.length > 0 ? parts : '-';
