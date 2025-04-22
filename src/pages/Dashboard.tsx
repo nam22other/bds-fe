@@ -104,17 +104,17 @@ export function Dashboard() {
       if (filters.price_min || filters.price_max || filters.exclude_null_prices) {
         // Handle price min
         if (filters.price_min) {
-          query = query.gte('price->>total_vnd', filters.price_min);
+          query = query.gte('total_vnd_int', filters.price_min);
         }
 
         // Handle price max
         if (filters.price_max) {
-          query = query.lte('price->>total_vnd', filters.price_max);
+          query = query.lte('total_vnd_int', filters.price_max);
         }
 
         // Handle null prices
         if (filters.exclude_null_prices) {
-          query = query.not('price->>total_vnd', 'is', null);
+          query = query.not('total_vnd_int', 'is', null);
         }
       }
 
