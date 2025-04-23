@@ -28,6 +28,10 @@ interface PostLocation {
   maps_link: string | null; // link to the maps and null if not available in the post
   proximity: string[] | null
 }
+interface PostReaction {
+  dislike?: number;
+  like?: number;
+}
 export interface PostData {
   id: number;
   author_id: string;
@@ -44,6 +48,7 @@ export interface PostData {
   status: number;
   fetch_at: string | null;
   special_things: string[] | null,
+  reaction: PostReaction | null;
   created_at: string; // create time of this real estate post
 }
 
@@ -59,7 +64,7 @@ export function Dashboard() {
   const [pageSize, setPageSize] = useState(10);
 
   // sorting state
-  const [sorting, setSorting] = useState<{
+  const [, setSorting] = useState<{
     id: string;
     desc: boolean;
   }[]>([{ id: 'id', desc: true }]);

@@ -3,30 +3,30 @@ import { ColumnDef, FilterFn } from '@tanstack/react-table';
 import { PostData } from '../../../pages/Dashboard'; // Import the PostData interface
 // import badge
 import { Badge } from '@/components/ui/badge';
-import { buttonVariants } from "@/components/ui/button"
 
 // Custom cell renderers
 const renderPostText = (value: string, data: PostData) => {
   // Truncate long text to first 100 characters
-  const post = value && value.length > 120
-    ? `${value.substring(0, 120)}...`
+  const post = value && value.length > 150
+    ? `${value.substring(0, 150)}...`
     : value;
 
   return (
     <div>
       <p>{post}</p>
-      <div className="hidden lg:block">
+      <div className="hidden lg:block mt-3">
         {data.special_things?.map((value, index) => <Badge key={index} variant="outline" className="mr-2">{value}</Badge>)}
       </div>
-      <a href={data.post_link} target="_blank"
-        rel="noopener noreferrer"
-        className={
-          buttonVariants({ variant: "outline" }) +
-          ' mt-3'
-        }
-      >
-        Chi tiết
-      </a>
+      {data.reaction && (
+        <div className="mt-3">
+          {data.reaction.dislike && (
+            <Badge variant="outline" className="mr-2 border-red-500">
+              👎 <span className="strong">{data.reaction.dislike}</span>
+            </Badge>
+
+          )}
+        </div>
+      )}
     </div>
   )
 };
@@ -51,10 +51,10 @@ const renderAreaData = (data: PostData) => {
   const parts = [];
 
   if (area.length_m && area.width_m) {
-    parts.push(<div key="dt">{area.width_m}m × ${area.length_m}m</div>);
+    parts.push(<div key="dt">{area.width_m}m × {area.length_m}m</div>);
   } else {
-    if (area.length_m) parts.push(<div key="length">Dài: ${area.length_m}m</div>);
-    if (area.width_m) parts.push(<div key="rong">Rộng: ${area.width_m}m</div>);
+    if (area.length_m) parts.push(<div key="length">Dài: {area.length_m}m</div>);
+    if (area.width_m) parts.push(<div key="rong">Rộng: {area.width_m}m</div>);
   }
 
   if (area.total_m2) {
@@ -114,6 +114,18 @@ export const columns: ColumnDef<PostData>[] = [
     header: 'ID',
     meta: {
       width: '20px'
+    },
+    cell: ({ row }) => {
+      return (
+        <a href={row.original.post_link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2"
+          title="Mở Link bài viết gốc"
+        >
+          {row.getValue('id')}
+        </a>
+      )
     }
   },
   {

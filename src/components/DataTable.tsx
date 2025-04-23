@@ -46,7 +46,7 @@ interface DataTableProps<TData, TValue> {
   pageIndex?: number;
   pageSize?: number;
   onPaginationChange?: (pageIndex: number, pageSize: number) => void;
-  onFilterChange?: (filters: any) => void;
+  onFilterChange?: (filters: object) => void;
   onSortingChange?: (sorting: { id: string; desc: boolean }[]) => void;
   sorting?: SortingState;
   manualPagination?: boolean;
